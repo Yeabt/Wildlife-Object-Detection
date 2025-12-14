@@ -49,5 +49,5 @@ pip install -r requirements.txt
 
 
 ## ✨ Credits
-- [AudioLDM — https://github.com/haoheliu/AudioLDM](https://docs.ultralytics.com/)
-- [MusicGen / Audiocraft — https://github.com/facebookresearch/audiocraft](https://docs.ultralytics.com/models/rtdetr/#usage-examples)
+- [Ultralytics YOLO11] https://docs.ultralytics.com/models/yolo11/#how-do-i-train-a-yolo11-model-for-object-detection
+- [Baidu's RT-DETR: A Vision Transformer-Based Real-Time Object Detector] https://docs.ultralytics.com/models/rtdetr/#overview
