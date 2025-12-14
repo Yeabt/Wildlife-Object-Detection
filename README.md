@@ -16,7 +16,9 @@ It supports image inference, video inference, webcam capture, and multi-object t
 | ------------- | ------------------------------------------------ |
 | **YOLO**      | Fast, real-time object detection                 |
 | **RT-DETR**   | Transformer-based detector with global reasoning |
-| **ByteTrack** | Online multi-object tracking algorithm           |
+
+# 📸 Dataset used
+- [CCT20 Benchmark subset] https://lila.science/datasets/caltech-camera-traps
 
 # 📁 Project Structure
 ```
