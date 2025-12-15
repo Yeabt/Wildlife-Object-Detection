@@ -1,8 +1,11 @@
+import time
 import streamlit as st
 import numpy as np
 import cv2
 from PIL import Image
 import tempfile
+from streamlit_webrtc import webrtc_streamer, VideoProcessorBase
+import av
 
 from utils.load_model import load_models
 from utils.inference_yolo import run_inference_yolo_image, run_inference
@@ -22,7 +25,7 @@ conf = st.sidebar.slider("Confidence Threshold", 0.1, 1.0, 0.25)
 
 mode = st.radio(
     "Select Mode",
-    ["Image", "Video", "Webcam", "Model Comparison"],
+    ["Image", "Video", "Webcam", "Real-Time Webcam", "Model Comparison"],
     horizontal=True
 )
 
@@ -155,3 +158,78 @@ if mode == "Webcam":
             caption=f"{model_choice} | FPS: {fps:.2f}",
             width=1000
         )
+
+class DetectionProcessor(VideoProcessorBase):
+    def __init__(self):
+        self.model_choice = "YOLO"
+        self.conf = 0.25
+
+        # User-controlled target
+        self.user_fps = 15
+
+        # Adaptive interval
+        self.min_interval = 1.0 / self.user_fps
+
+        self.last_infer_time = 0.0
+        self.last_output = None
+
+    def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
+        now = time.time()
+
+        #Skip inference if too soon
+        if now - self.last_infer_time < self.min_interval:
+            if self.last_output is not None:
+                return frame
+
+        img = frame.to_ndarray(format="bgr24")
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+        infer_start = time.time()
+
+        if self.model_choice == "YOLO":
+            output, _, _ = run_inference(
+                yolo_model, img_rgb, conf=self.conf, imgsz=640
+            )
+        else:
+            output, _, _ = run_inference(
+                rtdetr_model, img_rgb, conf=self.conf, imgsz=512
+            )
+
+        infer_time = time.time() - infer_start
+
+        safe_fps = 1.0 / infer_time
+        effective_fps = min(self.user_fps, safe_fps)
+
+        self.min_interval = 1.0 / effective_fps
+
+        output_bgr = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
+
+        self.last_output = output_bgr
+        self.last_infer_time = time.time()
+
+        return av.VideoFrame.from_ndarray(output_bgr, format="bgr24")
+
+if mode == "Real-Time Webcam":
+    st.title("📸 Real-Time Webcam Detection")
+
+    model_choice = st.selectbox("Model", ["YOLO", "RT-DETR"])
+
+    target_fps = st.slider(
+        "Output FPS (skipping is used to compensate)",
+        min_value=5,
+        max_value=60,
+        value=15,
+        step=1,
+        key="target_fps",
+    )
+
+    ctx = webrtc_streamer(
+        key="object-detection",
+        video_processor_factory=DetectionProcessor,
+        media_stream_constraints={"video": True, "audio": False},
+    )
+
+    if ctx.video_processor:
+        ctx.video_processor.model_choice = model_choice
+        ctx.video_processor.conf = conf
+        ctx.video_processor.user_fps = target_fps
