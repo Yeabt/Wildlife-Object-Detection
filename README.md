@@ -49,6 +49,10 @@ conda activate cv_app
 pip install -r requirements.txt
 ```
 
+## 🚀 Run the Application
+```
+streamlit run app.py
+```
 
 ## ✨ Credits
 - [Ultralytics YOLO11] https://docs.ultralytics.com/models/yolo11/#how-do-i-train-a-yolo11-model-for-object-detection
