@@ -164,34 +164,50 @@ class DetectionProcessor(VideoProcessorBase):
         self.model_choice = "YOLO"
         self.conf = 0.25
 
-        # User-controlled target
         self.user_fps = 15
-
-        # Adaptive interval
         self.min_interval = 1.0 / self.user_fps
 
         self.last_infer_time = 0.0
-        self.last_output = None
+        self.last_results = None  # store detections
+
+    def draw_results(self, img, results):
+        for r in results:
+            for box in r.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                conf = float(box.conf[0])
+                cls = int(box.cls[0])
+
+                cv2.rectangle(img, (x1, y1), (x2, y2), (0, 255, 0), 2)
+                cv2.putText(
+                    img,
+                    f"{cls}:{conf:.2f}",
+                    (x1, y1 - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (0, 255, 0),
+                    1,
+                )
+        return img
 
     def recv(self, frame: av.VideoFrame) -> av.VideoFrame:
         now = time.time()
 
-        #Skip inference if too soon
-        if now - self.last_infer_time < self.min_interval:
-            if self.last_output is not None:
-                return frame
-
         img = frame.to_ndarray(format="bgr24")
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
+        if now - self.last_infer_time < self.min_interval:
+            if self.last_results is not None:
+                img = self.draw_results(img, self.last_results)
+                return av.VideoFrame.from_ndarray(img, format="bgr24")
+
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         infer_start = time.time()
 
         if self.model_choice == "YOLO":
-            output, _, _ = run_inference(
+            output, _, results = run_inference(
                 yolo_model, img_rgb, conf=self.conf, imgsz=640
             )
         else:
-            output, _, _ = run_inference(
+            output, _, results = run_inference(
                 rtdetr_model, img_rgb, conf=self.conf, imgsz=512
             )
 
@@ -199,15 +215,14 @@ class DetectionProcessor(VideoProcessorBase):
 
         safe_fps = 1.0 / infer_time
         effective_fps = min(self.user_fps, safe_fps)
-
         self.min_interval = 1.0 / effective_fps
 
-        output_bgr = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
-
-        self.last_output = output_bgr
+        self.last_results = results
         self.last_infer_time = time.time()
 
+        output_bgr = cv2.cvtColor(output, cv2.COLOR_RGB2BGR)
         return av.VideoFrame.from_ndarray(output_bgr, format="bgr24")
+
 
 if mode == "Real-Time Webcam":
     st.title("📸 Real-Time Webcam Detection")
@@ -215,7 +230,7 @@ if mode == "Real-Time Webcam":
     model_choice = st.selectbox("Model", ["YOLO", "RT-DETR"])
 
     target_fps = st.slider(
-        "Output FPS (skipping is used to compensate)",
+        "Inference FPS (skipping is used to compensate)",
         min_value=5,
         max_value=60,
         value=15,
