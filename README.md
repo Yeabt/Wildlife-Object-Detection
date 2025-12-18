@@ -1,7 +1,7 @@
 # 🦌 Multi-Model Object Detection & Tracking with Streamlit
 
 This project is a computer vision web application that deploys and compares YOLO and RT-DETR object detection models using Streamlit.
-It supports image inference, video inference, webcam capture, and multi-object tracking with ByteTrack, enabling real-time-style wildlife monitoring and performance comparison.
+It supports image inference, video inference, webcam capture, and multi-object tracking enabling real-time-style wildlife monitoring and performance comparison.
 
 # ✨ Key Features
 - 🔍 Image Object Detection
